@@ -121,7 +121,8 @@ export default function App() {
     let logIndex = 0;
     const interval = setInterval(() => {
       if (logIndex < SIMULATED_LOGS.length) {
-        setLoadingLogs(prev => [...prev, SIMULATED_LOGS[logIndex]]);
+        const logItem = SIMULATED_LOGS[logIndex];
+        setLoadingLogs(prev => [...prev, logItem]);
         
         // Dynamically pop in hotspots during the scan!
         if (logIndex === 3) setVisibleHotspots(prev => [...prev, 1]); // Hero
