@@ -1,4 +1,24 @@
+export interface ScorecardDetail {
+  score: number;
+  label: string;
+  interpretation: string;
+}
 
+export interface AnnotationItem {
+  id: number;
+  element_name: string;
+  x_percent: number; // 0 to 100 percentage from left
+  y_percent: number; // 0 to 100 percentage from top
+  critique_type: 'friction' | 'confusion' | 'copy_fail' | 'trust_signal' | 'generic';
+  commentary: string;
+}
+
+export interface ViralMetrics {
+  startup_delusion_index: number;
+  buzzword_density: number;
+  vc_bait_potential: number;
+  pm_sanity_score: number;
+}
 
 export interface RoastResponse {
   product_name: string;
@@ -15,6 +35,19 @@ export interface RoastResponse {
     differentiation: number;
     growth_potential: number;
   };
+  score_interpretations: {
+    first_impression: string;
+    problem_clarity: string;
+    onboarding_activation: string;
+    ux_clarity: string;
+    trust_credibility: string;
+    monetization: string;
+    retention: string;
+    differentiation: string;
+    growth_potential: string;
+  };
+  viral_metrics: ViralMetrics;
+  annotations: AnnotationItem[];
   what_works: string[];
   what_fails: string[];
   top_3_fixes: string[];
@@ -47,6 +80,57 @@ export const demoRoast: RoastResponse = {
     differentiation: 3,
     growth_potential: 7
   },
+  score_interpretations: {
+    first_impression: "Buzzword-heavy hero header creates high cognitive noise.",
+    problem_clarity: "Uses vague hype words instead of stating the actual problem.",
+    onboarding_activation: "Forcing Stripe integration before value realization kills activation rates.",
+    ux_clarity: "Confuses CFO metrics with database read counts in the same view.",
+    trust_credibility: "Zero security certifications or customer validation visible.",
+    monetization: "Value exchange feels weak; pricing feels arbitrary.",
+    retention: "No clear recurring loop or utility to trigger daily usage.",
+    differentiation: "Looks like a standard Tailwind SaaS template with basic chart wrappers.",
+    growth_potential: "No collaborative features, but the analytics sharing has minor potential."
+  },
+  viral_metrics: {
+    startup_delusion_index: 88,
+    buzzword_density: 94,
+    vc_bait_potential: 75,
+    pm_sanity_score: 18
+  },
+  annotations: [
+    {
+      id: 1,
+      element_name: "Hero Headline",
+      x_percent: 50,
+      y_percent: 18,
+      critique_type: "copy_fail",
+      commentary: "Header 'Leverage AI to Hyper-Optimize Revenue' is complete buzzword soup. Fails to explain the core utility."
+    },
+    {
+      id: 2,
+      element_name: "Primary CTA Button",
+      x_percent: 50,
+      y_percent: 45,
+      critique_type: "friction",
+      commentary: "Forcing a direct Stripe OAuth connection on step 1 creates an immediate conversion drop-off of 70%+."
+    },
+    {
+      id: 3,
+      element_name: "Sidebar Metrics",
+      x_percent: 12,
+      y_percent: 32,
+      critique_type: "confusion",
+      commentary: "Mixing high-level MRR with database read counts. DBA concerns should not be on a revenue dashboard."
+    },
+    {
+      id: 4,
+      element_name: "Footer/Empty area",
+      x_percent: 85,
+      y_percent: 80,
+      critique_type: "trust_signal",
+      commentary: "Complete lack of trust signals. No customer logos, SOC2 compliance info, or data safety guarantees."
+    }
+  ],
   what_works: [
     "Sleek layout with a unified dark mode that feels visually premium at first glance.",
     "Quick-glance charts display data updates fast, giving a sense of active system monitoring.",
@@ -59,13 +143,13 @@ export const demoRoast: RoastResponse = {
     "The dashboard mixes high-level MRR metrics with granular database read counts. It shows a severe lack of focus on who the customer actually is: is this for the CFO or the Database Administrator?"
   ],
   top_3_fixes: [
-    "Replace the buzzword-heavy header with a direct benefit statement: 'Forecast churn & detect leaking subscriptions in 2 clicks. No manual modeling required.'",
-    "Implement a sandbox demo state. Allow users to explore a mock dashboard with interactive metrics before forcing them to hook up their live Stripe accounts.",
-    "Add a dedicated security block next to the connection screen. Explain in plain English: 'Read-only API access. We never touch your funds. 256-bit encryption.'"
+    "Clarify Hero Value Prop: Replace the buzzword-heavy header with a direct benefit statement: 'Forecast churn & detect leaking subscriptions in 2 clicks.'",
+    "Add Sandbox Mode: Allow users to explore a mock dashboard with interactive metrics before forcing them to hook up their live Stripe accounts.",
+    "Introduce Trust Block: Add a dedicated security block next to the connection screen. Explain in plain English: 'Read-only API access. We never touch your funds.'"
   ],
   best_growth_angle: "Create a free 'Stripe Leakage Calculator' tool that analyzes the last 30 days of Stripe invoices and generates a shareable leak report. Push this on Hacker News and Twitter.",
   likely_target_user: "Seed-stage SaaS founders who have 50-200 customers and want to monitor subscription health without building internal SQL dashboards.",
-  likely_monetization_model: "Usage-based freemium. Free up to $10k MRR, then $49/mo flat rate, scaling based on invoice volume.",
+  likely_monetization_model: "Usage-based B2B SaaS. Free up to $10k MRR, then $49/mo flat rate, scaling based on invoice volume.",
   pm_recommendation: "Pivot away from generic 'revenue optimization' towards 'churn leak detection.' Focus entirely on showing SaaS founders which specific accounts are about to cancel, as this is a high-pain point that triggers direct ROI. Delay Stripe authorization until the user understands what insight they get in return.",
   linkedin_hook: "🔥 SaaSifyMetrics claims to optimize revenue with AI, but it is actually a $49/mo wrapper for SQL commands that pre-dates ChatGPT. Here is why forcing Stripe connection on step 1 is killing their activation funnel... 👇",
   substack_hook: "In this week's PM breakdown: Why 'AI revenue optimization' is the new default buzzword for SaaS apps, and a masterclass on how to fix a high-friction Stripe onboarding flow that leaks 70% of signups.",
@@ -114,10 +198,6 @@ export async function roastProduct(
   };
 
   const imagePart = await convertFileToGenerativePart(imageFile);
-
-  // Initialize client using the newer SDK structure
-  // Note: we can use a direct fetch request or the SDK's generateContent method
-  // Direct fetch is often safer and easier in browsers because it bypasses node-dependent packaging issues.
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const systemInstruction = `
@@ -135,7 +215,7 @@ IMPORTANT BEHAVIOR RULES:
 - Think like a senior PM at a high-performing consumer or SaaS product company.
 - Prioritize problems by impact.
 - Focus on activation, retention, clarity, trust, conversion, and differentiation.
-- Keep the analysis practical and actionable.
+- Keep the analysis practical, actionable, and punchy.
 - If the screenshot is unclear, lower the confidence score and detail the ambiguity.
 - Write in a sharp, confident, structured style.
 
@@ -158,6 +238,33 @@ Schema:
     "differentiation": 0, // Clone/wrapper vs original concept
     "growth_potential": 0 // Sharing, virality, distribution potential
   },
+  "score_interpretations": {
+    "first_impression": "One-line description of the score rationale",
+    "problem_clarity": "One-line description of the score rationale",
+    "onboarding_activation": "One-line description of the score rationale",
+    "ux_clarity": "One-line description of the score rationale",
+    "trust_credibility": "One-line description of the score rationale",
+    "monetization": "One-line description of the score rationale",
+    "retention": "One-line description of the score rationale",
+    "differentiation": "One-line description of the score rationale",
+    "growth_potential": "One-line description of the score rationale"
+  },
+  "viral_metrics": {
+    "startup_delusion_index": 0, // Percentage 0-100 indicating founder hubris/hype vs actual user value
+    "buzzword_density": 0, // Percentage 0-100 indicating buzzword count
+    "vc_bait_potential": 0, // Percentage 0-100 indicating appeal to VCs based purely on hype
+    "pm_sanity_score": 0 // Percentage 0-100 indicating how clean the user experience logic is
+  },
+  "annotations": [
+    {
+      "id": 1, // Unique index starting at 1
+      "element_name": "Short name of the annotated area (e.g. 'Hero Headline', 'CTA Button', 'Pricing Block')",
+      "x_percent": 0, // Estimate the X coordinate from left (0 to 100) of this element in the image
+      "y_percent": 0, // Estimate the Y coordinate from top (0 to 100) of this element in the image
+      "critique_type": "friction", // Choose from: 'friction', 'confusion', 'copy_fail', 'trust_signal', 'generic'
+      "commentary": "Extremely specific, brutal but actionable PM commentary about this visual element"
+    }
+  ],
   "what_works": [
     "Bullet points of actual good things, if any (keep it brief and real)"
   ],
@@ -165,11 +272,11 @@ Schema:
     "Detailed bullet points of product weaknesses, friction points, or copy failures"
   ],
   "top_3_fixes": [
-    "Prioritized, high-impact changes to make in the next 30 days. Be highly specific (e.g. 'Move CTA above fold', 'Replace buzzwords with X')"
+    "Prioritized, high-impact changes to make in the next 30 days. Format: 'Action Title: Action explanation'"
   ],
   "best_growth_angle": "A creative, high-leverage distribution channel or viral loop suited to this product",
   "likely_target_user": "Define the narrow customer profile that has this specific pain point",
-  "likely_monetization_model": "E.g. Freemium, B2B SaaS subscription, usage billing, ad-supported",
+  "likely_monetization_model": "E.g. Freemium B2B SaaS, monthly consumer sub, usage-based billing",
   "pm_recommendation": "A short, actionable strategy note written directly to the product owner",
   "linkedin_hook": "A spicy, click-worthy LinkedIn post hook summarizing the roast to share with peers",
   "substack_hook": "A catchy, analytical email subject line / hook for a Substack product teardown newsletter",
@@ -187,7 +294,7 @@ Schema:
 Analyze this product screenshot. 
 ${additionalContext ? `Additional context provided by user: "${additionalContext}"` : "No additional text context was provided."}
 
-Remember, evaluate it brutally and honestly. Return ONLY the JSON object.
+Return ONLY the JSON object. Do not wrap in markdown syntax. Ensure coordinate estimations for elements inside annotations are as accurate as possible.
 `;
 
   const response = await fetch(url, {
@@ -230,7 +337,6 @@ Remember, evaluate it brutally and honestly. Return ONLY the JSON object.
     throw new Error("Empty response from Gemini API.");
   }
 
-  // Parse the JSON. Clean up any accidental markdown blocks if present.
   let cleanedText = rawText.trim();
   if (cleanedText.startsWith("```json")) {
     cleanedText = cleanedText.substring(7);

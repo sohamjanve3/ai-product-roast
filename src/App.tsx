@@ -1,21 +1,35 @@
 import { useState, useEffect } from 'react';
-import { Flame, ShieldAlert, Key } from 'lucide-react';
+import { Flame, ShieldAlert, Key, Terminal } from 'lucide-react';
 import UploadZone from './components/UploadZone';
 import RoastDashboard from './components/RoastDashboard';
 import { roastProduct, demoRoast, RoastResponse } from './services/gemini';
 
-const LOADING_STAGES = [
-  "Reading landing page copy & searching for buzzword soup...",
-  "Sizing up primary Call to Action (CTA) friction...",
-  "Evaluating trust signals (or lack thereof)...",
-  "Assessing activation flow & founder ego levels...",
-  "Drafting brutally honest feedback deck..."
+interface TerminalLine {
+  text: string;
+  type: 'info' | 'scan' | 'crit' | 'success';
+}
+
+const SIMULATED_LOGS: TerminalLine[] = [
+  { text: "[INFO] Initializing AI Product Roast Engine...", type: 'info' },
+  { text: "[SCAN] Analyzing visual hierarchy & layout grid...", type: 'scan' },
+  { text: "[SCAN] Running OCR copy parsing on Hero Header...", type: 'scan' },
+  { text: "[CRITICAL] Buzzword soup detected: 'Leverage AI to Hyper-Optimize' found.", type: 'crit' },
+  { text: "[SCAN] Scanning primary CTA conversion paths...", type: 'scan' },
+  { text: "[CRITICAL] Conversion leak: stripe oauth required prior to core utility value.", type: 'crit' },
+  { text: "[SCAN] Evaluating visual sidebar modules...", type: 'scan' },
+  { text: "[WARN] Cognitive clutter: DB reads displayed alongside business MRR stats.", type: 'crit' },
+  { text: "[SCAN] Checking credibility indicators & secure headers...", type: 'scan' },
+  { text: "[WARN] Trust gap: SOC2, GDPR, or customer proof missing.", type: 'crit' },
+  { text: "[INFO] Estimating Startup Delusion Index...", type: 'info' },
+  { text: "[INFO] Drafting action plan & social hooks...", type: 'info' },
+  { text: "[SUCCESS] Teardown finished. Rendering dashboard.", type: 'success' }
 ];
 
 export default function App() {
   const [apiKey, setApiKey] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [loadingStage, setLoadingStage] = useState<number>(0);
+  const [loadingLogs, setLoadingLogs] = useState<TerminalLine[]>([]);
+  const [visibleHotspots, setVisibleHotspots] = useState<number[]>([]);
   const [roastResult, setRoastResult] = useState<RoastResponse | null>(null);
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,22 +47,34 @@ export default function App() {
     localStorage.setItem('gemini_api_key', newKey);
   };
 
-  // Simulates the funny PM loading stages
-  const runLoadingSimulation = (callback: () => void) => {
+  // Run scanner simulation with logs typewriter output & dynamic hotspot rendering
+  const runTeardownSimulation = (resultData: RoastResponse, callback: () => void) => {
     setLoading(true);
-    setLoadingStage(0);
+    setLoadingLogs([]);
+    setVisibleHotspots([]);
     setError(null);
 
+    let logIndex = 0;
     const interval = setInterval(() => {
-      setLoadingStage(prev => {
-        if (prev >= LOADING_STAGES.length - 1) {
-          clearInterval(interval);
+      if (logIndex < SIMULATED_LOGS.length) {
+        setLoadingLogs(prev => [...prev, SIMULATED_LOGS[logIndex]]);
+        
+        // Dynamically pop in hotspots during the scan!
+        if (logIndex === 3) setVisibleHotspots(prev => [...prev, 1]); // Hero
+        if (logIndex === 5) setVisibleHotspots(prev => [...prev, 2]); // Stripe CTA
+        if (logIndex === 7) setVisibleHotspots(prev => [...prev, 3]); // Sidebar
+        if (logIndex === 9) setVisibleHotspots(prev => [...prev, 4]); // Footer
+        
+        logIndex++;
+      } else {
+        clearInterval(interval);
+        setTimeout(() => {
+          setRoastResult(resultData);
+          setLoading(false);
           callback();
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 1500);
+        }, 1000);
+      }
+    }, 600);
 
     return interval;
   };
@@ -63,20 +89,17 @@ export default function App() {
     const previewUrl = URL.createObjectURL(file);
     setScreenshotUrl(previewUrl);
 
-    let activeInterval: any;
-
     try {
-      // Start loading simulation
-      activeInterval = runLoadingSimulation(() => {});
+      setLoading(true);
+      setLoadingLogs([{ text: "[INFO] Fetching analysis from Gemini multimodal API...", type: 'info' }]);
+      setError(null);
 
-      // Trigger actual API call
+      // Trigger actual API call first
       const result = await roastProduct(apiKey, file, context);
       
-      clearInterval(activeInterval);
-      setRoastResult(result);
-      setLoading(false);
+      // Once data returns, run the beautiful scanner animation to present it
+      runTeardownSimulation(result, () => {});
     } catch (err: any) {
-      if (activeInterval) clearInterval(activeInterval);
       setLoading(false);
       setError(err?.message || "An unexpected error occurred during analysis.");
       setScreenshotUrl(null);
@@ -84,11 +107,8 @@ export default function App() {
   };
 
   const handleTryDemo = () => {
-    setScreenshotUrl(null);
-    runLoadingSimulation(() => {
-      setRoastResult(demoRoast);
-      setLoading(false);
-    });
+    setScreenshotUrl(null); // Triggers mock SVG wireframe display
+    runTeardownSimulation(demoRoast, () => {});
   };
 
   const handleReset = () => {
@@ -104,9 +124,9 @@ export default function App() {
       <header className="app-header">
         <div className="brand">
           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4b2b' }}>
-            <Flame size={32} style={{ filter: 'drop-shadow(0 0 8px rgba(255, 75, 43, 0.4))' }} />
+            <Flame size={28} style={{ filter: 'drop-shadow(0 0 8px rgba(244, 63, 94, 0.4))' }} />
           </span>
-          <h1 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)' }}>
+          <h1 style={{ fontSize: '20px', fontFamily: 'var(--font-heading)' }}>
             AI <span className="fire-gradient-text">Product Roast</span>
           </h1>
         </div>
@@ -147,44 +167,90 @@ export default function App() {
         )}
 
         {loading ? (
-          /* Loading State screen */
+          /* "Scanner Lab" Active Loading State */
           <div className="glass-card" style={{ 
-            maxWidth: '600px', 
-            margin: '40px auto', 
+            maxWidth: '800px', 
+            margin: '30px auto', 
             textAlign: 'center', 
-            padding: '50px 30px',
+            padding: '30px',
             display: 'flex',
             flexDirection: 'column',
             gap: '24px',
             alignItems: 'center'
           }}>
-            <div style={{ position: 'relative', width: '80px', height: '80px' }}>
-              <Flame 
-                size={64} 
-                style={{ 
-                  color: '#ff4b2b',
-                  animation: 'flamePulse 1.5s infinite ease-in-out',
-                  filter: 'drop-shadow(0 0 12px rgba(255, 75, 43, 0.5))'
-                }} 
-              />
+            <h3 style={{ fontSize: '22px', fontFamily: 'var(--font-heading)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Flame size={20} className="fire-gradient-text" /> Running Multimodal Heuristic Audit...
+            </h3>
+
+            {/* Scanning Box container */}
+            <div className="scan-container" style={{ width: '100%', maxHeight: '380px' }}>
+              <div className="laser-line"></div>
+              
+              {screenshotUrl ? (
+                /* Real user image scanned */
+                <div style={{ position: 'relative', width: '100%', maxHeight: '380px', overflow: 'hidden' }}>
+                  <img src={screenshotUrl} alt="Scan Target" className="screenshot-image" style={{ width: '100%', height: 'auto' }} />
+                  {/* Progressive hotspots */}
+                  {demoRoast.annotations.map(hot => visibleHotspots.includes(hot.id) && (
+                    <div 
+                      key={hot.id} 
+                      className={`hotspot ${hot.critique_type}`}
+                      style={{ left: `${hot.x_percent}%`, top: `${hot.y_percent}%` }}
+                    >
+                      {hot.id}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* SVG Wireframe dashboard scanned in Demo Mode */
+                <div className="mock-dashboard-wireframe">
+                  <div className="mock-dashboard-header">
+                    <span className="mock-dashboard-logo">SaaSifyMetrics AI</span>
+                    <div style={{ width: '60px', height: '14px', background: '#1c1c28', borderRadius: '4px' }}></div>
+                  </div>
+                  <div className="mock-dashboard-body">
+                    <div className="mock-dashboard-sidebar">
+                      <div className="mock-dashboard-sidebar-item"></div>
+                      <div className="mock-dashboard-sidebar-item" style={{ width: '80%' }}></div>
+                      <div className="mock-dashboard-sidebar-item"></div>
+                    </div>
+                    <div className="mock-dashboard-main">
+                      <div className="mock-dashboard-hero-title"></div>
+                      <div className="mock-dashboard-cta"></div>
+                      <div className="mock-dashboard-charts-grid">
+                        <div className="mock-dashboard-chart-card"></div>
+                        <div className="mock-dashboard-chart-card"></div>
+                        <div className="mock-dashboard-chart-card"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Progressive hotspots */}
+                  {demoRoast.annotations.map(hot => visibleHotspots.includes(hot.id) && (
+                    <div 
+                      key={hot.id} 
+                      className={`hotspot ${hot.critique_type}`}
+                      style={{ left: `${hot.x_percent}%`, top: `${hot.y_percent}%` }}
+                    >
+                      {hot.id}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-heading)' }}>Roasting in progress...</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', minHeight: '40px', lineHeight: 1.5 }}>
-                {LOADING_STAGES[loadingStage]}
-              </p>
-            </div>
-
-            {/* Fake progress bar track */}
-            <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{ 
-                width: `${((loadingStage + 1) / LOADING_STAGES.length) * 100}%`, 
-                height: '100%', 
-                background: 'var(--primary-gradient)',
-                borderRadius: '2px',
-                transition: 'width 0.5s ease-in-out'
-              }} />
+            {/* Terminal output */}
+            <div className="terminal-window">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px', marginBottom: '10px' }}>
+                <Terminal size={14} /> <span>AUDIT_LOG_STREAM: active</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {loadingLogs.map((log, idx) => (
+                  <div key={idx} className={`terminal-line ${log.type}`}>
+                    {log.text}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         ) : roastResult ? (
@@ -211,9 +277,9 @@ export default function App() {
         padding: '30px', 
         borderTop: '1px solid var(--surface-border)', 
         color: 'var(--text-muted)', 
-        fontSize: '13px' 
+        fontSize: '12px' 
       }}>
-        <p>© 2026 AI Product Roast. No feelings were harmed in the making of this landing page.</p>
+        <p>© 2026 AI Product Roast. Strictly constructive tear-downs. No feelings were harmed in the making of this report.</p>
       </footer>
 
     </div>

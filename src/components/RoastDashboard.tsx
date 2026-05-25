@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { RoastResponse } from '../services/gemini';
+import { RoastResponse, AnnotationItem } from '../services/gemini';
 import { 
-  AlertTriangle, CheckCircle, ArrowRight, User, DollarSign, Rocket, 
-  Linkedin, Mail, ArrowLeft, Printer, ShieldAlert, Sparkles, Copy, Check 
+  AlertTriangle, CheckCircle, User, DollarSign, Rocket, 
+  Linkedin, Mail, ArrowLeft, Printer, Copy, Check,
+  Zap, Flame, Shield, HelpCircle
 } from 'lucide-react';
 
 interface RoastDashboardProps {
@@ -13,13 +14,30 @@ interface RoastDashboardProps {
 
 export default function RoastDashboard({ roast, onReset, screenshotUrl }: RoastDashboardProps) {
   const [activeFixIndex, setActiveFixIndex] = useState<number>(0);
-  const [copiedLink, setCopiedLink] = useState<'linkedin' | 'substack' | null>(null);
+  const [hoveredHotspot, setHoveredHotspot] = useState<AnnotationItem | null>(null);
+  const [copiedLink, setCopiedLink] = useState<'linkedin' | 'substack' | 'cta' | null>(null);
 
   // Score Color Helper
   const getScoreColor = (score: number) => {
     if (score >= 7.5) return 'var(--color-success)';
     if (score >= 4.5) return 'var(--color-warning)';
     return 'var(--color-error)';
+  };
+
+  const getScoreRiskLabel = (score: number) => {
+    if (score >= 7.5) return 'HEALTHY';
+    if (score >= 4.5) return 'WARNING';
+    return 'CRITICAL';
+  };
+
+  const getCritiqueColor = (type: string) => {
+    switch (type) {
+      case 'copy_fail': return 'var(--color-error)';
+      case 'friction': return 'var(--color-warning)';
+      case 'confusion': return 'var(--accent-purple)';
+      case 'trust_signal': return 'var(--color-info)';
+      default: return 'var(--text-muted)';
+    }
   };
 
   // Convert key names to readable text
@@ -31,7 +49,7 @@ export default function RoastDashboard({ roast, onReset, screenshotUrl }: RoastD
   };
 
   // Copy to clipboard helper
-  const handleCopy = (text: string, type: 'linkedin' | 'substack') => {
+  const handleCopy = (text: string, type: 'linkedin' | 'substack' | 'cta') => {
     navigator.clipboard.writeText(text);
     setCopiedLink(type);
     setTimeout(() => setCopiedLink(null), 2000);
@@ -40,14 +58,25 @@ export default function RoastDashboard({ roast, onReset, screenshotUrl }: RoastD
   const overallColor = getScoreColor(roast.overall_score);
   const radius = 50;
   const circumference = 2 * Math.PI * radius;
-  // Normalize score out of 10
   const dashOffset = circumference - (roast.overall_score / 10) * circumference;
+
+  const getViralMetricColor = (metric: string, val: number) => {
+    if (metric === 'pm_sanity_score') {
+      return val >= 70 ? 'var(--color-success)' : val >= 40 ? 'var(--color-warning)' : 'var(--color-error)';
+    }
+    return val >= 80 ? 'var(--color-error)' : val >= 50 ? 'var(--color-warning)' : 'var(--color-success)';
+  };
+
+  const shareTextCTA = `🔥 I just got my startup roasted by AI Product Roast! 
+Verdict: "${roast.one_line_verdict}"
+Delusion Index: ${roast.viral_metrics.startup_delusion_index}% | Buzzword Density: ${roast.viral_metrics.buzzword_density}%
+Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', margin: '20px auto 0', maxWidth: '1100px' }}>
       
       {/* Back & Export buttons */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="no-print">
         <button
           onClick={onReset}
           style={{
@@ -80,143 +109,392 @@ export default function RoastDashboard({ roast, onReset, screenshotUrl }: RoastD
             gap: '6px'
           }}
         >
-          <Printer size={14} /> Export Report
+          <Printer size={14} /> Export PDF Slide Deck
         </button>
       </div>
 
-      {/* Hero Overview Card */}
-      <div className="glass-card" style={{ 
-        display: 'flex', 
-        gap: '30px', 
-        alignItems: 'center', 
-        flexWrap: 'wrap', 
-        padding: '36px',
-        animation: 'fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
-      }}>
+      {/* -------------------------------------------------------------
+         SLIDE 1: OVERVIEW, ANNOTATED SCREENSHOT & VIRAL METRICS
+         ------------------------------------------------------------- */}
+      <div className="deck-slide">
         
-        {/* Score Ring */}
-        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-          <div className="score-circle-wrapper">
-            <svg className="score-circle-svg">
-              <circle className="score-circle-bg" cx="60" cy="60" r={radius} />
-              <circle 
-                className="score-circle-fill" 
-                cx="60" 
-                cy="60" 
-                r={radius} 
-                stroke={overallColor}
-                strokeDasharray={circumference}
-                strokeDashoffset={dashOffset}
-                style={{
-                  filter: `drop-shadow(0 0 8px ${overallColor}44)`
-                }}
-              />
-            </svg>
-            <div style={{ position: 'absolute', textAlign: 'center' }}>
-              <div style={{ fontSize: '32px', fontFamily: 'var(--font-heading)', fontWeight: 800, color: 'var(--text-primary)' }}>
-                {roast.overall_score}
+        {/* Main Side-by-Side Presentation Layout */}
+        <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', marginBottom: '30px' }}>
+          
+          {/* Left Block: Verdict Card */}
+          <div className="glass-card" style={{ 
+            flex: '1 1 450px', 
+            display: 'flex', 
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            padding: '30px',
+            minHeight: '380px'
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ 
+                  fontSize: '11px', 
+                  textTransform: 'uppercase', 
+                  color: 'var(--color-error)', 
+                  fontWeight: 800, 
+                  letterSpacing: '0.1em', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px',
+                  background: 'rgba(244, 63, 94, 0.1)',
+                  padding: '4px 8px',
+                  borderRadius: '4px'
+                }}>
+                  <Flame size={12} /> TEARDOWN SLIDE 1
+                </span>
+                
+                <span style={{ 
+                  fontSize: '11px', 
+                  fontWeight: 800, 
+                  letterSpacing: '0.05em', 
+                  textTransform: 'uppercase',
+                  color: overallColor,
+                  background: `${overallColor}15`,
+                  padding: '4px 10px',
+                  borderRadius: '12px'
+                }}>
+                  OVERALL: {roast.overall_score}/10
+                </span>
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                / 10
+              
+              <h2 style={{ fontSize: '38px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+                {roast.product_name}
+              </h2>
+              
+              <p style={{ 
+                fontSize: '18px', 
+                color: 'var(--text-primary)', 
+                lineHeight: 1.5, 
+                fontStyle: 'italic', 
+                borderLeft: '4px solid var(--accent-crimson)', 
+                paddingLeft: '16px',
+                marginTop: '10px'
+              }}>
+                "{roast.one_line_verdict}"
+              </p>
+            </div>
+
+            {/* Overall Score Dial */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '20px', borderTop: '1px solid var(--surface-border)', paddingTop: '20px' }}>
+              <div className="score-circle-wrapper">
+                <svg className="score-circle-svg">
+                  <circle className="score-circle-bg" cx="60" cy="60" r={radius} />
+                  <circle 
+                    className="score-circle-fill" 
+                    cx="60" 
+                    cy="60" 
+                    r={radius} 
+                    stroke={overallColor}
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashOffset}
+                    style={{
+                      filter: `drop-shadow(0 0 8px ${overallColor}44)`
+                    }}
+                  />
+                </svg>
+                <div style={{ position: 'absolute', textAlign: 'center' }}>
+                  <div style={{ fontSize: '30px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
+                    {roast.overall_score}
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    Score
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '16px', fontWeight: 700, color: overallColor }}>
+                  {getScoreRiskLabel(roast.overall_score)} STATUS
+                </h4>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.4 }}>
+                  This product shows critical activation drop-offs. Substantial optimization needed to achieve baseline market conversions.
+                </p>
               </div>
             </div>
           </div>
-          <span style={{ 
-            fontSize: '12px', 
-            fontWeight: 700, 
-            letterSpacing: '0.05em', 
-            textTransform: 'uppercase',
-            color: overallColor,
-            background: `${overallColor}12`,
-            padding: '4px 10px',
-            borderRadius: '12px'
-          }}>
-            {roast.overall_score >= 7.5 ? 'Good' : roast.overall_score >= 4.5 ? 'Average' : 'Critical'}
-          </span>
-        </div>
 
-        {/* Verdict Details */}
-        <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '13px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 700, letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Sparkles size={14} /> Teardown Verdict
+          {/* Right Block: Annotated Image Canvas */}
+          <div style={{ flex: '1 1 450px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Zap size={14} style={{ color: 'var(--accent-amber)' }} /> Interactive Visual Teardown (Hover indicators)
             </span>
+            
+            <div className="annotation-wrapper">
+              {screenshotUrl ? (
+                <div style={{ position: 'relative' }}>
+                  <img src={screenshotUrl} alt="Screenshot audit" className="screenshot-image" />
+                  {/* Dynamic Hotspots */}
+                  {roast.annotations.map(hot => (
+                    <div 
+                      key={hot.id} 
+                      className={`hotspot ${hot.critique_type}`}
+                      style={{ left: `${hot.x_percent}%`, top: `${hot.y_percent}%` }}
+                      onMouseEnter={() => setHoveredHotspot(hot)}
+                      onMouseLeave={() => setHoveredHotspot(null)}
+                    >
+                      {hot.id}
+                      <div className="hotspot-tooltip">
+                        <strong style={{ display: 'block', marginBottom: '4px', color: getCritiqueColor(hot.critique_type) }}>
+                          {hot.id}. {hot.element_name} ({hot.critique_type.toUpperCase().replace('_', ' ')})
+                        </strong>
+                        {hot.commentary}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* Mock Dashboard Wireframe for Demo Mode */
+                <div className="mock-dashboard-wireframe">
+                  <div className="mock-dashboard-header">
+                    <span className="mock-dashboard-logo">SaaSifyMetrics AI</span>
+                    <div style={{ width: '60px', height: '14px', background: '#1c1c28', borderRadius: '4px' }}></div>
+                  </div>
+                  <div className="mock-dashboard-body">
+                    <div className="mock-dashboard-sidebar">
+                      <div className="mock-dashboard-sidebar-item"></div>
+                      <div className="mock-dashboard-sidebar-item" style={{ width: '80%' }}></div>
+                      <div className="mock-dashboard-sidebar-item"></div>
+                    </div>
+                    <div className="mock-dashboard-main">
+                      <div className="mock-dashboard-hero-title"></div>
+                      <div className="mock-dashboard-cta"></div>
+                      <div className="mock-dashboard-charts-grid">
+                        <div className="mock-dashboard-chart-card"></div>
+                        <div className="mock-dashboard-chart-card"></div>
+                        <div className="mock-dashboard-chart-card"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Mock Hotspots */}
+                  {roast.annotations.map(hot => (
+                    <div 
+                      key={hot.id} 
+                      className={`hotspot ${hot.critique_type}`}
+                      style={{ left: `${hot.x_percent}%`, top: `${hot.y_percent}%` }}
+                      onMouseEnter={() => setHoveredHotspot(hot)}
+                      onMouseLeave={() => setHoveredHotspot(null)}
+                    >
+                      {hot.id}
+                      <div className="hotspot-tooltip">
+                        <strong style={{ display: 'block', marginBottom: '4px', color: getCritiqueColor(hot.critique_type) }}>
+                          {hot.id}. {hot.element_name} ({hot.critique_type.toUpperCase().replace('_', ' ')})
+                        </strong>
+                        {hot.commentary}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Interactive commentary feed below image (crucial for mobile & print layout) */}
+            <div style={{ 
+              background: 'rgba(255,255,255,0.02)', 
+              borderRadius: 'var(--border-radius-sm)', 
+              padding: '12px 16px', 
+              border: '1px solid var(--surface-border)',
+              minHeight: '60px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center'
+            }}>
+              {hoveredHotspot ? (
+                <div>
+                  <strong style={{ color: getCritiqueColor(hoveredHotspot.critique_type), fontSize: '13px' }}>
+                    Marker {hoveredHotspot.id}: {hoveredHotspot.element_name} — 
+                  </strong>
+                  <span style={{ fontSize: '13px', color: '#f3f4f6' }}> {hoveredHotspot.commentary}</span>
+                </div>
+              ) : (
+                <div style={{ color: 'var(--text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <HelpCircle size={16} /> Hover over markers on the screenshot to view detailed visual critiques.
+                </div>
+              )}
+            </div>
           </div>
-          <h2 style={{ fontSize: '32px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
-            {roast.product_name}
-          </h2>
-          <p style={{ 
-            fontSize: '18px', 
-            color: 'var(--text-primary)', 
-            lineHeight: 1.5, 
-            fontStyle: 'italic', 
-            borderLeft: '3px solid #ff4b2b', 
-            paddingLeft: '16px',
-            marginTop: '10px'
-          }}>
-            "{roast.one_line_verdict}"
-          </p>
         </div>
 
-        {/* Screenshot mini-preview if uploaded */}
-        {screenshotUrl && (
-          <div style={{ 
-            width: '180px', 
-            height: '110px', 
-            overflow: 'hidden', 
-            borderRadius: 'var(--border-radius-sm)',
-            border: '1px solid var(--surface-border)',
-            flexShrink: 0
-          }}>
-            <img src={screenshotUrl} alt="Analyzed Page" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          </div>
-        )}
-      </div>
-
-      {/* Grid of Scores & Mini Progress Bars */}
-      <div>
-        <h3 style={{ fontSize: '18px', fontFamily: 'var(--font-heading)', marginBottom: '16px', color: 'var(--text-secondary)' }}>
-          Detailed Scorecard
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-          {Object.entries(roast.scores).map(([key, val]) => (
-            <div key={key} className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {formatScoreKey(key)}
-                </span>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: getScoreColor(val) }}>
-                  {val}/10
-                </span>
+        {/* Viral Metrics Panel */}
+        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <h4 style={{ fontSize: '16px', fontFamily: 'var(--font-heading)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Zap size={16} className="fire-gradient-text" /> Viral Growth Metrics
+          </h4>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+            
+            {/* Startup Delusion Index */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Startup Delusion Index</span>
+                <strong style={{ color: getViralMetricColor('startup_delusion_index', roast.viral_metrics.startup_delusion_index) }}>
+                  {roast.viral_metrics.startup_delusion_index}%
+                </strong>
               </div>
-              {/* Custom Track and Progress bar */}
-              <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{ height: '8px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
                 <div style={{ 
-                  width: `${val * 10}%`, 
+                  width: `${roast.viral_metrics.startup_delusion_index}%`, 
                   height: '100%', 
-                  background: getScoreColor(val),
-                  borderRadius: '3px',
-                  boxShadow: `0 0 6px ${getScoreColor(val)}77`
+                  background: getViralMetricColor('startup_delusion_index', roast.viral_metrics.startup_delusion_index) 
                 }} />
               </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Founder hubris vs actual value proposition.</span>
             </div>
-          ))}
+
+            {/* Buzzword Density */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Buzzword Density</span>
+                <strong style={{ color: getViralMetricColor('buzzword_density', roast.viral_metrics.buzzword_density) }}>
+                  {roast.viral_metrics.buzzword_density}%
+                </strong>
+              </div>
+              <div style={{ height: '8px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ 
+                  width: `${roast.viral_metrics.buzzword_density}%`, 
+                  height: '100%', 
+                  background: getViralMetricColor('buzzword_density', roast.viral_metrics.buzzword_density) 
+                }} />
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Marketing-hype terms density on screen.</span>
+            </div>
+
+            {/* VC Bait Potential */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>VC Bait Potential</span>
+                <strong style={{ color: getViralMetricColor('vc_bait_potential', roast.viral_metrics.vc_bait_potential) }}>
+                  {roast.viral_metrics.vc_bait_potential}%
+                </strong>
+              </div>
+              <div style={{ height: '8px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ 
+                  width: `${roast.viral_metrics.vc_bait_potential}%`, 
+                  height: '100%', 
+                  background: getViralMetricColor('vc_bait_potential', roast.viral_metrics.vc_bait_potential) 
+                }} />
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Probability of raising money before shutdown.</span>
+            </div>
+
+            {/* PM Sanity Score */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>PM Sanity Score</span>
+                <strong style={{ color: getViralMetricColor('pm_sanity_score', roast.viral_metrics.pm_sanity_score) }}>
+                  {roast.viral_metrics.pm_sanity_score}%
+                </strong>
+              </div>
+              <div style={{ height: '8px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ 
+                  width: `${roast.viral_metrics.pm_sanity_score}%`, 
+                  height: '100%', 
+                  background: getViralMetricColor('pm_sanity_score', roast.viral_metrics.pm_sanity_score) 
+                }} />
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Logical UX soundness from a PM perspective.</span>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      {/* -------------------------------------------------------------
+         SLIDE 2: DETAILED SCORECARDS WITH STORY-DRIVEN DESCRIPTIONS
+         ------------------------------------------------------------- */}
+      <div className="deck-slide glass-card" style={{ padding: '30px' }}>
+        <div style={{ borderBottom: '1px solid var(--surface-border)', paddingBottom: '15px', marginBottom: '24px' }}>
+          <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 800, letterSpacing: '0.15em' }}>
+            TEARDOWN SLIDE 2
+          </span>
+          <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800, marginTop: '4px' }}>
+            UX Dimension Scorecards
+          </h3>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+          {Object.entries(roast.scores).map(([key, val]) => {
+            const interpretation = roast.score_interpretations[key as keyof typeof roast.score_interpretations] || "";
+            const categoryColor = getScoreColor(val);
+            return (
+              <div 
+                key={key} 
+                className="glass-card" 
+                style={{ 
+                  padding: '20px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '12px',
+                  background: 'rgba(255,255,255,0.01)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {formatScoreKey(key)}
+                    </span>
+                    <span style={{ 
+                      fontSize: '9px', 
+                      fontWeight: 800, 
+                      color: categoryColor, 
+                      letterSpacing: '0.05em',
+                      border: `1px solid ${categoryColor}33`,
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      width: 'fit-content',
+                      marginTop: '4px'
+                    }}>
+                      {getScoreRiskLabel(val)}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '18px', fontWeight: 800, color: categoryColor }}>
+                    {val}/10
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  {interpretation}
+                </p>
+
+                <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.03)', borderRadius: '2px', overflow: 'hidden', marginTop: 'auto' }}>
+                  <div style={{ 
+                    width: `${val * 10}%`, 
+                    height: '100%', 
+                    background: categoryColor,
+                    borderRadius: '2px'
+                  }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* What Works vs What Fails */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px', marginTop: '10px' }}>
+      {/* -------------------------------------------------------------
+         SLIDE 3: CRITIQUE POINTS (WHAT FAILS VS WHAT WORKS)
+         ------------------------------------------------------------- */}
+      <div className="deck-slide" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px' }}>
         
         {/* What Fails Card */}
-        <div className="glass-card" style={{ borderColor: 'rgba(244, 63, 94, 0.2)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-error)' }}>
-            <AlertTriangle size={20} />
-            <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>Critique & Friction points</h3>
+        <div className="glass-card" style={{ borderColor: 'rgba(244, 63, 94, 0.2)', padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 800, letterSpacing: '0.15em' }}>
+              TEARDOWN SLIDE 3 (A)
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-error)', marginTop: '4px' }}>
+              <AlertTriangle size={22} />
+              <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>Friction & Cognitive Noise</h3>
+            </div>
           </div>
-          <ul style={{ display: 'flex', flexDirection: 'column', gap: '14px', listStyleType: 'none' }}>
+          <ul style={{ display: 'flex', flexDirection: 'column', gap: '16px', listStyleType: 'none' }}>
             {roast.what_fails.map((fail, i) => (
-              <li key={i} style={{ display: 'flex', gap: '10px', fontSize: '14px', lineHeight: 1.5, color: '#f3f4f6' }}>
-                <span style={{ color: 'var(--color-error)', flexShrink: 0, fontWeight: 'bold' }}>•</span>
+              <li key={i} style={{ display: 'flex', gap: '12px', fontSize: '14px', lineHeight: 1.5, color: '#f3f4f6' }}>
+                <span style={{ color: 'var(--color-error)', flexShrink: 0, fontWeight: 'bold', fontSize: '16px' }}>•</span>
                 <span>{fail}</span>
               </li>
             ))}
@@ -224,217 +502,261 @@ export default function RoastDashboard({ roast, onReset, screenshotUrl }: RoastD
         </div>
 
         {/* What Works Card */}
-        <div className="glass-card" style={{ borderColor: 'rgba(16, 185, 129, 0.2)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-success)' }}>
-            <CheckCircle size={20} />
-            <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>What Works</h3>
+        <div className="glass-card" style={{ borderColor: 'rgba(16, 185, 129, 0.2)', padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-success)', fontWeight: 800, letterSpacing: '0.15em' }}>
+              TEARDOWN SLIDE 3 (B)
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-success)', marginTop: '4px' }}>
+              <CheckCircle size={22} />
+              <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>Intelligent Optimizations</h3>
+            </div>
           </div>
-          {roast.what_works.length > 0 ? (
-            <ul style={{ display: 'flex', flexDirection: 'column', gap: '14px', listStyleType: 'none' }}>
-              {roast.what_works.map((work, i) => (
-                <li key={i} style={{ display: 'flex', gap: '10px', fontSize: '14px', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
-                  <span style={{ color: 'var(--color-success)', flexShrink: 0, fontWeight: 'bold' }}>✓</span>
-                  <span>{work}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontStyle: 'italic' }}>
-              No redeeming elements identified in this screenshot.
-            </p>
-          )}
+          <ul style={{ display: 'flex', flexDirection: 'column', gap: '16px', listStyleType: 'none' }}>
+            {roast.what_works.map((work, i) => (
+              <li key={i} style={{ display: 'flex', gap: '12px', fontSize: '14px', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--color-success)', flexShrink: 0, fontWeight: 'bold' }}>✓</span>
+                <span>{work}</span>
+              </li>
+            ))}
+          </ul>
         </div>
+
       </div>
 
-      {/* Top 3 Prioritized Fixes */}
-      <div className="glass-card" style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* -------------------------------------------------------------
+         SLIDE 4: PRIORITIZED ACTION PLAN & PM NOTE
+         ------------------------------------------------------------- */}
+      <div className="deck-slide glass-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div>
-          <h3 style={{ fontSize: '22px', fontFamily: 'var(--font-heading)', fontWeight: 700, marginBottom: '6px' }}>
-            Top 3 High-Impact Fixes
+          <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 800, letterSpacing: '0.15em' }}>
+            TEARDOWN SLIDE 4
+          </span>
+          <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800, marginTop: '4px' }}>
+            Prioritized Roadmap & Strategy
           </h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-            Action plan for the next 30 days to optimize conversions and activation.
-          </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {roast.top_3_fixes.map((fix, idx) => {
-            const isActive = activeFixIndex === idx;
-            return (
-              <div key={idx} style={{ display: 'flex', flexDirection: 'column' }}>
-                <div 
-                  className={`accordion-header ${isActive ? 'active' : ''}`}
-                  onClick={() => setActiveFixIndex(isActive ? -1 : idx)}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ 
-                      width: '28px', 
-                      height: '28px', 
-                      borderRadius: '50%', 
-                      background: isActive ? 'var(--primary-gradient)' : 'rgba(255,255,255,0.05)',
-                      color: '#fff',
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
+          
+          {/* Top 3 Accordions */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {roast.top_3_fixes.map((fix, idx) => {
+              const isActive = activeFixIndex === idx;
+              return (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div 
+                    className={`accordion-header ${isActive ? 'active' : ''}`}
+                    onClick={() => setActiveFixIndex(isActive ? -1 : idx)}
+                    style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '14px',
-                      fontWeight: 700
-                    }}>
-                      {idx + 1}
-                    </span>
-                    <span style={{ fontWeight: 600, fontSize: '15px', color: isActive ? '#fff' : 'var(--text-primary)' }}>
-                      {fix.split(':')[0] || fix}
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ 
+                        width: '28px', 
+                        height: '28px', 
+                        borderRadius: '50%', 
+                        background: isActive ? 'var(--primary-gradient)' : 'rgba(255,255,255,0.04)',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '13px',
+                        fontWeight: 800
+                      }}>
+                        {idx + 1}
+                      </span>
+                      <span style={{ fontWeight: 600, fontSize: '14px', color: isActive ? '#fff' : 'var(--text-primary)' }}>
+                        {fix.split(':')[0] || fix}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                      {isActive ? 'Hide' : 'Why it works'}
                     </span>
                   </div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {isActive ? 'Hide Detail' : 'Show Why it Works'} <ArrowRight size={12} style={{ transform: isActive ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
-                  </span>
-                </div>
 
-                {isActive && (
-                  <div className="accordion-content">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <p style={{ fontSize: '14px', lineHeight: 1.6, color: '#f3f4f6' }}>
+                  {isActive && (
+                    <div className="accordion-content">
+                      <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#f3f4f6' }}>
                         {fix.substring(fix.indexOf(':') + 1).trim() || fix}
                       </p>
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '12px', 
-                        alignItems: 'center', 
-                        background: 'rgba(255, 75, 43, 0.04)', 
-                        padding: '10px 14px', 
-                        borderRadius: '4px',
-                        borderLeft: '3px solid #ff4b2b',
-                        fontSize: '13px'
-                      }}>
-                        <ShieldAlert size={16} style={{ color: '#ff4b2b', flexShrink: 0 }} />
-                        <span><strong>PM Implementation Logic:</strong> Prioritize this change to bypass immediate onboarding friction, directly shortening the user's path to experiencing product value.</span>
-                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* PM Strategist Note */}
+          <div style={{ 
+            background: 'rgba(255,255,255,0.01)', 
+            border: '1px solid var(--surface-border)', 
+            borderRadius: 'var(--border-radius-md)', 
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            <h4 style={{ fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Shield size={16} style={{ color: 'var(--accent-crimson)' }} /> Executive PM Guidance
+            </h4>
+            <p style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-line' }}>
+              {roast.pm_recommendation}
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      {/* -------------------------------------------------------------
+         SLIDE 5: DISTRIBUTION & VIRALLY OPTIMIZED SOCIAL SHARING
+         ------------------------------------------------------------- */}
+      <div className="deck-slide">
+        
+        {/* Profile & Business Details */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+          
+          <div className="glass-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+            <div style={{ padding: '10px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', color: '#3b82f6' }}>
+              <User size={20} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Target User Persona</h4>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{roast.likely_target_user}</p>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+            <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', color: '#10b981' }}>
+              <DollarSign size={20} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Monetization Model</h4>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{roast.likely_monetization_model}</p>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+            <div style={{ padding: '10px', background: 'rgba(251, 191, 36, 0.1)', borderRadius: '8px', color: '#fbbf24' }}>
+              <Rocket size={20} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Growth distribution Angle</h4>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{roast.best_growth_angle}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Viral Hooks Cards */}
+        <div className="glass-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 800, letterSpacing: '0.15em' }}>
+              TEARDOWN SLIDE 5
+            </span>
+            <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800, marginTop: '4px' }}>
+              Viral Sharing Content
+            </h3>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
+            
+            {/* LinkedIn Hook */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--surface-border)', paddingBottom: '10px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 700, color: '#0077b5' }}>
+                  <Linkedin size={16} /> LinkedIn Viral Hook
+                </span>
+                <button
+                  onClick={() => handleCopy(roast.linkedin_hook, 'linkedin')}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: copiedLink === 'linkedin' ? 'var(--color-success)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  {copiedLink === 'linkedin' ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedLink === 'linkedin' ? 'Copied' : 'Copy'}
+                </button>
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '4px' }}>
+                "{roast.linkedin_hook}"
+              </p>
+            </div>
 
-      {/* Strategic Positioning Brief */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginTop: '10px' }}>
-        
-        {/* Target Profile */}
-        <div className="glass-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-          <div style={{ padding: '10px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', color: '#3b82f6' }}>
-            <User size={20} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <h4 style={{ fontSize: '16px', fontWeight: 700 }}>Likely Target User</h4>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{roast.likely_target_user}</p>
-          </div>
-        </div>
+            {/* Substack Hook */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--surface-border)', paddingBottom: '10px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 700, color: '#ff5400' }}>
+                  <Mail size={16} /> Substack Subject & Teaser
+                </span>
+                <button
+                  onClick={() => handleCopy(roast.substack_hook, 'substack')}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: copiedLink === 'substack' ? 'var(--color-success)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  {copiedLink === 'substack' ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedLink === 'substack' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '4px' }}>
+                "{roast.substack_hook}"
+              </p>
+            </div>
 
-        {/* Business Model */}
-        <div className="glass-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-          <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', color: '#10b981' }}>
-            <DollarSign size={20} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <h4 style={{ fontSize: '16px', fontWeight: 700 }}>Likely Monetization</h4>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{roast.likely_monetization_model}</p>
-          </div>
-        </div>
 
-        {/* Growth Angle */}
-        <div className="glass-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-          <div style={{ padding: '10px', background: 'rgba(251, 191, 36, 0.1)', borderRadius: '8px', color: '#fbbf24' }}>
-            <Rocket size={20} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <h4 style={{ fontSize: '16px', fontWeight: 700 }}>Best Growth Angle</h4>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{roast.best_growth_angle}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Detailed PM Recommendation Note */}
-      <div className="glass-card" style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h3 style={{ fontSize: '18px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
-          Product Strategist Note
-        </h3>
-        <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--text-primary)', whiteSpace: 'pre-line' }}>
-          {roast.pm_recommendation}
-        </p>
-      </div>
-
-      {/* Social Hook Content Generators */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px', marginTop: '10px' }}>
-        
-        {/* LinkedIn Hook card */}
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--surface-border)', paddingBottom: '10px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 700, color: '#0077b5' }}>
-              <Linkedin size={16} /> LinkedIn Viral Hook
-            </span>
+          {/* Quick-copy Viral CTA */}
+          <div style={{ 
+            background: 'rgba(244, 63, 94, 0.03)', 
+            border: '1px solid rgba(244, 63, 94, 0.15)', 
+            padding: '16px 20px', 
+            borderRadius: 'var(--border-radius-sm)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px',
+            marginTop: '10px'
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <strong style={{ fontSize: '14px', color: '#fff' }}>Share your roast score to social media</strong>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Click copy to generate a beautifully structured template of your teardown.</span>
+            </div>
             <button
-              onClick={() => handleCopy(roast.linkedin_hook, 'linkedin')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: copiedLink === 'linkedin' ? 'var(--color-success)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
+              onClick={() => handleCopy(shareTextCTA, 'cta')}
+              className="fire-glow-button"
+              style={{ padding: '8px 16px', fontSize: '13px' }}
             >
-              {copiedLink === 'linkedin' ? <Check size={14} /> : <Copy size={14} />}
-              {copiedLink === 'linkedin' ? 'Copied' : 'Copy'}
+              {copiedLink === 'cta' ? <Check size={14} /> : <Copy size={14} />}
+              {copiedLink === 'cta' ? 'Copied Viral Post!' : 'Copy Share Template'}
             </button>
           </div>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '4px' }}>
-            "{roast.linkedin_hook}"
-          </p>
+
         </div>
 
-        {/* Substack Newsletter Teaser */}
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--surface-border)', paddingBottom: '10px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 700, color: '#ff5400' }}>
-              <Mail size={16} /> Substack Teader / Subject Line
-            </span>
-            <button
-              onClick={() => handleCopy(roast.substack_hook, 'substack')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: copiedLink === 'substack' ? 'var(--color-success)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              {copiedLink === 'substack' ? <Check size={14} /> : <Copy size={14} />}
-              {copiedLink === 'substack' ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '4px' }}>
-            "{roast.substack_hook}"
-          </p>
-        </div>
       </div>
 
-      {/* Meta details & confidence metrics */}
+      {/* Meta, Evidence Used and Trust metrics */}
       <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: 'rgba(0, 0, 0, 0.1)', borderColor: 'rgba(255,255,255,0.03)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Roast Confidence Rating: <strong>{roast.confidence}%</strong>
+            Heuristic Audit Confidence rating: <strong>{roast.confidence}%</strong>
           </span>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             Calculated on visual markers and layout structures.
