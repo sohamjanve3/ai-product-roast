@@ -1,5 +1,69 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { Flame, ShieldAlert, Key, Terminal } from 'lucide-react';
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null
+  };
+
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="glass-card" style={{ maxWidth: '600px', margin: '40px auto', padding: '30px', textAlign: 'center', borderColor: 'var(--color-error)' }}>
+          <h3 style={{ color: 'var(--color-error)', marginBottom: '10px' }}>Teardown Engine Crashed</h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '14px' }}>
+            The PM bot hit an unexpected error rendering the dashboard.
+          </p>
+          <pre style={{ 
+            background: '#000', 
+            color: '#ff4b2b', 
+            padding: '16px', 
+            borderRadius: '4px', 
+            fontSize: '12px', 
+            textAlign: 'left', 
+            overflowX: 'auto',
+            whiteSpace: 'pre-wrap',
+            maxHeight: '250px',
+            overflowY: 'auto',
+            fontFamily: 'monospace',
+            lineHeight: 1.4
+          }}>
+            {this.state.error?.toString()}
+            {"\n\n"}
+            {this.state.error?.stack}
+          </pre>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="fire-glow-button" 
+            style={{ marginTop: '20px', fontSize: '13px' }}
+          >
+            Reload Application
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 import UploadZone from './components/UploadZone';
 import RoastDashboard from './components/RoastDashboard';
 import { roastProduct, demoRoast, RoastResponse } from './services/gemini';
@@ -255,11 +319,13 @@ export default function App() {
           </div>
         ) : roastResult ? (
           /* Dashboard Results screen */
-          <RoastDashboard 
-            roast={roastResult} 
-            onReset={handleReset} 
-            screenshotUrl={screenshotUrl} 
-          />
+          <ErrorBoundary>
+            <RoastDashboard 
+              roast={roastResult} 
+              onReset={handleReset} 
+              screenshotUrl={screenshotUrl} 
+            />
+          </ErrorBoundary>
         ) : (
           /* Upload / Start screen */
           <UploadZone 
