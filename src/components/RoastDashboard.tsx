@@ -19,9 +19,9 @@ export default function RoastDashboard({ roast, onReset, screenshotUrl }: RoastD
 
   // Score Color Helper
   const getScoreColor = (score: number) => {
-    if (score >= 7.5) return 'var(--color-success)';
-    if (score >= 4.5) return 'var(--color-warning)';
-    return 'var(--color-error)';
+    if (score >= 7.5) return '#10b981';
+    if (score >= 4.5) return '#f59e0b';
+    return '#f43f5e';
   };
 
   const getScoreRiskLabel = (score: number) => {
