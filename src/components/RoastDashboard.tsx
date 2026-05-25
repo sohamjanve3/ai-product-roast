@@ -40,6 +40,12 @@ export default function RoastDashboard({ roast, onReset, screenshotUrl }: RoastD
     }
   };
 
+  const getTooltipClass = (xPercent: number) => {
+    if (xPercent < 25) return 'tooltip-left';
+    if (xPercent > 75) return 'tooltip-right';
+    return '';
+  };
+
   // Convert key names to readable text
   const formatScoreKey = (key: string) => {
     return key
@@ -70,7 +76,9 @@ export default function RoastDashboard({ roast, onReset, screenshotUrl }: RoastD
   const shareTextCTA = `🔥 I just got my startup roasted by AI Product Roast! 
 Verdict: "${roast.one_line_verdict}"
 Delusion Index: ${roast.viral_metrics.startup_delusion_index}% | Buzzword Density: ${roast.viral_metrics.buzzword_density}%
-Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
+
+Roast your own landing page for free: github.com/sohamjanve3/ai-product-roast
+Built by Soham Janve #AIProductRoast`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', margin: '20px auto 0', maxWidth: '1100px' }}>
@@ -119,10 +127,10 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
       <div className="deck-slide">
         
         {/* Main Side-by-Side Presentation Layout */}
-        <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', marginBottom: '30px' }}>
+        <div className="slide-side-by-side" style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', marginBottom: '30px' }}>
           
           {/* Left Block: Verdict Card */}
-          <div className="glass-card" style={{ 
+          <div className="glass-card slide-verdict-card" style={{ 
             flex: '1 1 450px', 
             display: 'flex', 
             flexDirection: 'column',
@@ -218,7 +226,7 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
           </div>
 
           {/* Right Block: Annotated Image Canvas */}
-          <div style={{ flex: '1 1 450px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="slide-screenshot-column" style={{ flex: '1 1 450px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Zap size={14} style={{ color: 'var(--accent-amber)' }} /> Interactive Visual Teardown (Hover indicators)
             </span>
@@ -237,7 +245,7 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
                       onMouseLeave={() => setHoveredHotspot(null)}
                     >
                       {hot.id}
-                      <div className="hotspot-tooltip">
+                      <div className={`hotspot-tooltip ${getTooltipClass(hot.x_percent)}`}>
                         <strong style={{ display: 'block', marginBottom: '4px', color: getCritiqueColor(hot.critique_type) }}>
                           {hot.id}. {hot.element_name} ({hot.critique_type.toUpperCase().replace('_', ' ')})
                         </strong>
@@ -280,7 +288,7 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
                       onMouseLeave={() => setHoveredHotspot(null)}
                     >
                       {hot.id}
-                      <div className="hotspot-tooltip">
+                      <div className={`hotspot-tooltip ${getTooltipClass(hot.x_percent)}`}>
                         <strong style={{ display: 'block', marginBottom: '4px', color: getCritiqueColor(hot.critique_type) }}>
                           {hot.id}. {hot.element_name} ({hot.critique_type.toUpperCase().replace('_', ' ')})
                         </strong>
@@ -402,6 +410,12 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
           </div>
         </div>
 
+        {/* Slide Footer / Attribution Watermark */}
+        <div className="print-slide-footer">
+          <span>linkedin.com/in/sohamjanve</span>
+          <span>Teardown by Soham Janve • github.com/sohamjanve3/ai-product-roast</span>
+        </div>
+
       </div>
 
       {/* -------------------------------------------------------------
@@ -417,7 +431,7 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
           </h3>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+        <div className="scorecards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
           {Object.entries(roast.scores).map(([key, val]) => {
             const interpretation = roast.score_interpretations[key as keyof typeof roast.score_interpretations] || "";
             const categoryColor = getScoreColor(val);
@@ -473,61 +487,76 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
             );
           })}
         </div>
+
+        {/* Slide Footer / Attribution Watermark */}
+        <div className="print-slide-footer">
+          <span>linkedin.com/in/sohamjanve</span>
+          <span>Teardown by Soham Janve • github.com/sohamjanve3/ai-product-roast</span>
+        </div>
+
       </div>
 
       {/* -------------------------------------------------------------
          SLIDE 3: CRITIQUE POINTS (WHAT FAILS VS WHAT WORKS)
          ------------------------------------------------------------- */}
-      <div className="deck-slide" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px' }}>
-        
-        {/* What Fails Card */}
-        <div className="glass-card" style={{ borderColor: 'rgba(244, 63, 94, 0.2)', padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div>
-            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 800, letterSpacing: '0.15em' }}>
-              TEARDOWN SLIDE 3 (A)
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-error)', marginTop: '4px' }}>
-              <AlertTriangle size={22} />
-              <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>Friction & Cognitive Noise</h3>
+      <div className="deck-slide slide3-container">
+        <div className="slide3-critique-deck" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px', width: '100%' }}>
+          
+          {/* What Fails Card */}
+          <div className="glass-card critique-fails-card" style={{ borderColor: 'rgba(244, 63, 94, 0.2)', padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 800, letterSpacing: '0.15em' }}>
+                TEARDOWN SLIDE 3 (A)
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-error)', marginTop: '4px' }}>
+                <AlertTriangle size={22} />
+                <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>Friction & Cognitive Noise</h3>
+              </div>
             </div>
+            <ul style={{ display: 'flex', flexDirection: 'column', gap: '16px', listStyleType: 'none' }}>
+              {roast.what_fails.map((fail, i) => (
+                <li key={i} style={{ display: 'flex', gap: '12px', fontSize: '14px', lineHeight: 1.5, color: '#f3f4f6' }}>
+                  <span style={{ color: 'var(--color-error)', flexShrink: 0, fontWeight: 'bold', fontSize: '16px' }}>•</span>
+                  <span>{fail}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul style={{ display: 'flex', flexDirection: 'column', gap: '16px', listStyleType: 'none' }}>
-            {roast.what_fails.map((fail, i) => (
-              <li key={i} style={{ display: 'flex', gap: '12px', fontSize: '14px', lineHeight: 1.5, color: '#f3f4f6' }}>
-                <span style={{ color: 'var(--color-error)', flexShrink: 0, fontWeight: 'bold', fontSize: '16px' }}>•</span>
-                <span>{fail}</span>
-              </li>
-            ))}
-          </ul>
+
+          {/* What Works Card */}
+          <div className="glass-card critique-works-card" style={{ borderColor: 'rgba(16, 185, 129, 0.2)', padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-success)', fontWeight: 800, letterSpacing: '0.15em' }}>
+                TEARDOWN SLIDE 3 (B)
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-success)', marginTop: '4px' }}>
+                <CheckCircle size={22} />
+                <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>Intelligent Optimizations</h3>
+              </div>
+            </div>
+            <ul style={{ display: 'flex', flexDirection: 'column', gap: '16px', listStyleType: 'none' }}>
+              {roast.what_works.map((work, i) => (
+                <li key={i} style={{ display: 'flex', gap: '12px', fontSize: '14px', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+                  <span style={{ color: 'var(--color-success)', flexShrink: 0, fontWeight: 'bold' }}>✓</span>
+                  <span>{work}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
         </div>
 
-        {/* What Works Card */}
-        <div className="glass-card" style={{ borderColor: 'rgba(16, 185, 129, 0.2)', padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div>
-            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-success)', fontWeight: 800, letterSpacing: '0.15em' }}>
-              TEARDOWN SLIDE 3 (B)
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-success)', marginTop: '4px' }}>
-              <CheckCircle size={22} />
-              <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>Intelligent Optimizations</h3>
-            </div>
-          </div>
-          <ul style={{ display: 'flex', flexDirection: 'column', gap: '16px', listStyleType: 'none' }}>
-            {roast.what_works.map((work, i) => (
-              <li key={i} style={{ display: 'flex', gap: '12px', fontSize: '14px', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
-                <span style={{ color: 'var(--color-success)', flexShrink: 0, fontWeight: 'bold' }}>✓</span>
-                <span>{work}</span>
-              </li>
-            ))}
-          </ul>
+        {/* Slide Footer / Attribution Watermark */}
+        <div className="print-slide-footer">
+          <span>linkedin.com/in/sohamjanve</span>
+          <span>Teardown by Soham Janve • github.com/sohamjanve3/ai-product-roast</span>
         </div>
-
       </div>
 
       {/* -------------------------------------------------------------
          SLIDE 4: PRIORITIZED ACTION PLAN & PM NOTE
          ------------------------------------------------------------- */}
-      <div className="deck-slide glass-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div className="deck-slide glass-card slide4-deck" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div>
           <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 800, letterSpacing: '0.15em' }}>
             TEARDOWN SLIDE 4
@@ -537,10 +566,10 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
           </h3>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
+        <div className="slide4-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
           
           {/* Top 3 Accordions */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="fixes-accordion-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {roast.top_3_fixes.map((fix, idx) => {
               const isActive = activeFixIndex === idx;
               return (
@@ -591,7 +620,7 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
           </div>
 
           {/* PM Strategist Note */}
-          <div style={{ 
+          <div className="pm-note-card" style={{ 
             background: 'rgba(255,255,255,0.01)', 
             border: '1px solid var(--surface-border)', 
             borderRadius: 'var(--border-radius-md)', 
@@ -609,6 +638,13 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
           </div>
 
         </div>
+
+        {/* Slide Footer / Attribution Watermark */}
+        <div className="print-slide-footer">
+          <span>linkedin.com/in/sohamjanve</span>
+          <span>Teardown by Soham Janve • github.com/sohamjanve3/ai-product-roast</span>
+        </div>
+
       </div>
 
       {/* -------------------------------------------------------------
@@ -617,7 +653,7 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
       <div className="deck-slide">
         
         {/* Profile & Business Details */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+        <div className="slide5-top-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
           
           <div className="glass-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
             <div style={{ padding: '10px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', color: '#3b82f6' }}>
@@ -651,7 +687,7 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
         </div>
 
         {/* Viral Hooks Cards */}
-        <div className="glass-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div className="glass-card slide5-hooks-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div>
             <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 800, letterSpacing: '0.15em' }}>
               TEARDOWN SLIDE 5
@@ -661,7 +697,7 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
             </h3>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
+          <div className="slide5-hooks-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
             
             {/* LinkedIn Hook */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -750,33 +786,57 @@ Roast your own landing page for free at: http://roast.ai #AIProductRoast`;
 
         </div>
 
+        {/* Slide Footer / Attribution Watermark */}
+        <div className="print-slide-footer">
+          <span>linkedin.com/in/sohamjanve</span>
+          <span>Teardown by Soham Janve • github.com/sohamjanve3/ai-product-roast</span>
+        </div>
+
       </div>
 
-      {/* Meta, Evidence Used and Trust metrics */}
-      <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: 'rgba(0, 0, 0, 0.1)', borderColor: 'rgba(255,255,255,0.03)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Heuristic Audit Confidence rating: <strong>{roast.confidence}%</strong>
+      {/* -------------------------------------------------------------
+         SLIDE 6: AUDIT EVIDENCE, CONFIDENCE & REFERENCE
+         ------------------------------------------------------------- */}
+      <div className="deck-slide glass-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div>
+          <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-error)', fontWeight: 800, letterSpacing: '0.15em' }}>
+            TEARDOWN REFERENCE
+          </span>
+          <h3 style={{ fontSize: '24px', fontFamily: 'var(--font-heading)', fontWeight: 800, marginTop: '4px' }}>
+            Audit Evidence & Technical Reference
+          </h3>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', background: 'rgba(255,255,255,0.01)', padding: '12px 16px', borderRadius: 'var(--border-radius-sm)', border: '1px solid var(--surface-border)' }}>
+          <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
+            Heuristic Audit Confidence rating: <strong style={{ color: 'var(--accent-emerald)' }}>{roast.confidence}%</strong>
           </span>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             Calculated on visual markers and layout structures.
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-          <div>
-            <h5 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Evidence Used in Roast:</h5>
-            <ul style={{ paddingLeft: '16px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+        <div className="slide6-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          <div className="glass-card" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
+            <h5 style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '10px', fontWeight: 700 }}>Evidence Used in Roast:</h5>
+            <ul style={{ paddingLeft: '16px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {roast.evidence_used.map((ev, i) => <li key={i}>{ev}</li>)}
             </ul>
           </div>
-          <div>
-            <h5 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Missing Information:</h5>
-            <ul style={{ paddingLeft: '16px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+          <div className="glass-card" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
+            <h5 style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '10px', fontWeight: 700 }}>Missing Information:</h5>
+            <ul style={{ paddingLeft: '16px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {roast.missing_information.map((mi, i) => <li key={i}>{mi}</li>)}
             </ul>
           </div>
         </div>
+
+        {/* Slide Footer / Attribution Watermark */}
+        <div className="print-slide-footer">
+          <span>linkedin.com/in/sohamjanve</span>
+          <span>Teardown by Soham Janve • github.com/sohamjanve3/ai-product-roast</span>
+        </div>
+
       </div>
 
     </div>
