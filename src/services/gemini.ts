@@ -221,6 +221,9 @@ IMPORTANT BEHAVIOR RULES:
 
 OUTPUT REQUIREMENTS:
 You MUST output ONLY a valid JSON object matching the schema below. Do not wrap it in markdown block like \`\`\`json. Return only raw JSON.
+- Ensure all double quotes inside string values are properly escaped (e.g. use \\" instead of ").
+- Ensure all string values are on a single line (escape actual newlines as \\n).
+- Strictly avoid trailing commas.
 
 Schema:
 {
@@ -337,17 +340,21 @@ Return ONLY the JSON object. Do not wrap in markdown syntax. Ensure coordinate e
     throw new Error("Empty response from Gemini API.");
   }
 
+  // Robustly extract and clean JSON
   let cleanedText = rawText.trim();
-  if (cleanedText.startsWith("```json")) {
-    cleanedText = cleanedText.substring(7);
+  const firstBrace = cleanedText.indexOf('{');
+  const lastBrace = cleanedText.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    cleanedText = cleanedText.substring(firstBrace, lastBrace + 1);
   }
-  if (cleanedText.startsWith("```")) {
-    cleanedText = cleanedText.substring(3);
-  }
-  if (cleanedText.endsWith("```")) {
-    cleanedText = cleanedText.substring(0, cleanedText.length - 3);
-  }
-  cleanedText = cleanedText.trim();
+
+  // Clean trailing commas
+  cleanedText = cleanedText.replace(/,\s*([\]}])/g, '$1');
+
+  // Escape actual raw newlines inside string values
+  cleanedText = cleanedText.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (_match: string, p1: string): string => {
+    return '"' + p1.replace(/\n/g, '\\n').replace(/\r/g, '') + '"';
+  });
 
   try {
     const parsed: RoastResponse = JSON.parse(cleanedText);
