@@ -300,37 +300,63 @@ ${additionalContext ? `Additional context provided by user: "${additionalContext
 Return ONLY the JSON object. Do not wrap in markdown syntax. Ensure coordinate estimations for elements inside annotations are as accurate as possible.
 `;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: systemInstruction
-            },
-            {
-              text: promptText
-            },
-            {
-              inlineData: imagePart.inlineData
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        responseMimeType: 'application/json'
-      }
-    })
-  });
+  let response: Response | null = null;
+  let attempts = 0;
+  const maxAttempts = 3;
+  let delay = 1500;
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini API Error (${response.status}): ${errText || 'Unknown error occurred.'}`);
+  while (attempts < maxAttempts) {
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: systemInstruction
+                },
+                {
+                  text: promptText
+                },
+                {
+                  inlineData: imagePart.inlineData
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json'
+          }
+        })
+      });
+
+      if ((response.status === 503 || response.status === 429) && attempts < maxAttempts - 1) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+        continue;
+      }
+
+      break;
+    } catch (fetchErr) {
+      if (attempts < maxAttempts - 1) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+        continue;
+      }
+      throw fetchErr;
+    }
+  }
+
+  if (!response || !response.ok) {
+    const errText = response ? await response.text() : 'No response received from Gemini server.';
+    throw new Error(`Gemini API Error (${response ? response.status : 'Unknown'}): ${errText}`);
   }
 
   const resultData = await response.json();
