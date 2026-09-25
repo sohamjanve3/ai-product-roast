@@ -1,5 +1,8 @@
 import { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { Flame, ShieldAlert, Key, Terminal, Linkedin } from 'lucide-react';
+import UploadZone from './components/UploadZone';
+import RoastDashboard from './components/RoastDashboard';
+import { roastProduct, demoRoast, RoastResponse } from './services/gemini';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -10,7 +13,7 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = {
     hasError: false,
     error: null
@@ -64,9 +67,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return this.props.children;
   }
 }
-import UploadZone from './components/UploadZone';
-import RoastDashboard from './components/RoastDashboard';
-import { roastProduct, demoRoast, RoastResponse } from './services/gemini';
 
 interface TerminalLine {
   text: string;
